@@ -1,0 +1,1188 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Dashboard Admin - Pangara</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+        * { font-family: 'Poppins', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .gradient-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .sidebar-link { transition: all 0.3s ease; cursor: pointer; }
+        .sidebar-link:hover { transform: translateX(5px); }
+        .sidebar-link.active { background: linear-gradient(to right, #7c3aed, #6d28d9); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .animate-slide-in { animation: slideIn 0.5s ease forwards; }
+        .modal { 
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0; 
+            top: 0; 
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s ease;
+        }
+        .modal.show { display: flex; align-items: center; justify-content: center; }
+        .modal-content { 
+            background-color: white; 
+            margin: auto; 
+            padding: 0; 
+            border-radius: 1rem; 
+            max-width: 600px; 
+            width: 90%; 
+            max-height: 90vh; 
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+        .sidebar-container { 
+            display: flex; 
+            flex-direction: column; 
+            height: 100%; 
+            position: relative; 
+        }
+        .sidebar-nav { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding-bottom: 200px;
+        }
+        .sidebar-footer { 
+            position: absolute; 
+            bottom: 0; 
+            left: 0; 
+            right: 0; 
+            background: #111827; 
+            border-top: 1px solid #374151; 
+        }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); transition: transform 0.3s ease; }
+            .sidebar.open { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100">
+    
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-72 bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white flex-shrink-0 shadow-2xl sidebar-container">
+            <div class="sidebar-nav">
+                <div class="p-6">
+                    <div class="flex items-center mb-8 pb-6 border-b border-gray-700">
+                        <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-cash-register text-2xl"></i>
+                        </div>
+                        <div>
+                            <span class="text-xl font-bold">Pangara</span>
+                            <div class="text-xs text-gray-400">Admin Panel</div>
+                        </div>
+                    </div>
+                    
+                    <nav class="space-y-2">
+                        <div onclick="showSection(event, 'dashboard')" class="sidebar-link active flex items-center px-4 py-3 rounded-xl" data-section="dashboard">
+                            <i class="fas fa-home mr-3 text-lg"></i>
+                            <span class="font-medium">Dashboard</span>
+                        </div>
+                        <div onclick="showSection(event, 'users')" class="sidebar-link flex items-center px-4 py-3 hover:bg-gray-800 rounded-xl" data-section="users">
+                            <i class="fas fa-users mr-3 text-lg"></i>
+                            <span class="font-medium">Kelola Pengguna</span>
+                            <span id="sidebar-users-count" class="ml-auto bg-purple-600 text-xs px-2 py-1 rounded-full">0</span>
+                        </div>
+                        <div onclick="showSection(event, 'products')" class="sidebar-link flex items-center px-4 py-3 hover:bg-gray-800 rounded-xl" data-section="products">
+                            <i class="fas fa-box mr-3 text-lg"></i>
+                            <span class="font-medium">Kelola Produk</span>
+                            <span id="sidebar-products-count" class="ml-auto bg-green-600 text-xs px-2 py-1 rounded-full">0</span>
+                        </div>
+                        <div onclick="showSection(event, 'categories')" class="sidebar-link flex items-center px-4 py-3 hover:bg-gray-800 rounded-xl" data-section="categories">
+                            <i class="fas fa-tags mr-3 text-lg"></i>
+                            <span class="font-medium">Kategori</span>
+                            <span id="sidebar-categories-count" class="ml-auto bg-yellow-600 text-xs px-2 py-1 rounded-full">0</span>
+                        </div>
+                        <div onclick="showSection(event, 'transactions')" class="sidebar-link flex items-center px-4 py-3 hover:bg-gray-800 rounded-xl" data-section="transactions">
+                            <i class="fas fa-receipt mr-3 text-lg"></i>
+                            <span class="font-medium">Transaksi</span>
+                            <span id="sidebar-transactions-count" class="ml-auto bg-blue-600 text-xs px-2 py-1 rounded-full">0</span>
+                        </div>
+                        <div onclick="showSection(event, 'reports')" class="sidebar-link flex items-center px-4 py-3 hover:bg-gray-800 rounded-xl" data-section="reports">
+                            <i class="fas fa-chart-line mr-3 text-lg"></i>
+                            <span class="font-medium">Laporan</span>
+                        </div>
+                        <div onclick="showSection(event, 'settings')" class="sidebar-link flex items-center px-4 py-3 hover:bg-gray-800 rounded-xl" data-section="settings">
+                            <i class="fas fa-cog mr-3 text-lg"></i>
+                            <span class="font-medium">Pengaturan</span>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer p-6">
+                <div class="flex items-center mb-4 p-3 bg-gray-800 rounded-xl">
+                    <img id="sidebarAvatar" src="{{ Auth::user()->avatar ? asset('storage/avatars/' . Auth::user()->avatar) : 'https://i.pravatar.cc/40?u=' . Auth::user()->id }}" onclick="openModal('editProfileModal')" class="w-12 h-12 rounded-full mr-3 border-2 border-purple-500 cursor-pointer" alt="{{ Auth::user()->name }}">
+                    <div class="flex-1">
+                        <div class="font-semibold text-sm">{{ Auth::user()->name }}</div>
+                        <div class="text-xs text-gray-400 flex items-center">
+                            <i class="fas fa-circle text-green-500 text-xs mr-1"></i>
+                            Administrator
+                        </div>
+                    </div>
+                </div>
+                <form action="{{ route('logout') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-xl transition shadow-lg font-medium">
+                        <i class="fas fa-sign-out-alt mr-2"></i>
+                        <span>Keluar</span>
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-lg z-10 border-b border-gray-200">
+                <div class="flex items-center justify-between px-8 py-5">
+                    <div>
+                        <h1 class="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Dashboard Admin</h1>
+                        <p class="text-sm text-gray-600 mt-1">Selamat datang kembali, <span class="font-semibold text-purple-600">{{ Auth::user()->name }}</span>! 👋</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <input type="text" placeholder="Cari..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 w-64">
+                            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        </div>
+                        <button class="relative p-3 text-gray-600 hover:bg-purple-100 rounded-xl transition">
+                            <i class="fas fa-bell text-xl"></i>
+                            <span class="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
+                        </button>
+                        <button class="p-3 text-gray-600 hover:bg-purple-100 rounded-xl transition">
+                            <i class="fas fa-envelope text-xl"></i>
+                        </button>
+                        <div class="flex items-center space-x-2 pl-4 border-l border-gray-300">
+                            <img id="headerAvatar" src="{{ Auth::user()->avatar ? asset('storage/avatars/' . Auth::user()->avatar) : 'https://i.pravatar.cc/40?u=' . Auth::user()->id }}" onclick="openModal('editProfileModal')" class="w-10 h-10 rounded-full border-2 border-purple-500 cursor-pointer" alt="{{ Auth::user()->name }}">
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <main class="flex-1 overflow-y-auto p-8">
+                <!-- Dashboard Section -->
+                <div id="dashboard-section" class="section-content">
+                    <!-- Quick Actions -->
+                    <div class="grid md:grid-cols-4 gap-4 mb-8">
+                        <button onclick="openModal('addUserModal')" class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-xl shadow-lg hover:shadow-xl transition transform hover:scale-105">
+                            <i class="fas fa-user-plus text-2xl mb-2"></i>
+                            <div class="font-semibold">Tambah Pengguna</div>
+                        </button>
+                        <button onclick="openModal('addProductModal')" class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-xl shadow-lg hover:shadow-xl transition transform hover:scale-105">
+                            <i class="fas fa-box-open text-2xl mb-2"></i>
+                            <div class="font-semibold">Tambah Produk</div>
+                        </button>
+                        <button onclick="openModal('addCategoryModal')" class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-xl shadow-lg hover:shadow-xl transition transform hover:scale-105">
+                            <i class="fas fa-tag text-2xl mb-2"></i>
+                            <div class="font-semibold">Tambah Kategori</div>
+                        </button>
+                        <button onclick="window.print()" class="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-xl shadow-lg hover:shadow-xl transition transform hover:scale-105">
+                            <i class="fas fa-print text-2xl mb-2"></i>
+                            <div class="font-semibold">Cetak Laporan</div>
+                        </button>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="card-hover bg-white rounded-2xl shadow-xl p-6 border-l-4 border-blue-500 animate-slide-in">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <i class="fas fa-dollar-sign text-2xl text-white"></i>
+                                </div>
+                                <span data-growth="sales" class="text-sm font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full">
+                                    <i class="fas fa-arrow-up mr-1"></i>+0%
+                                </span>
+                            </div>
+                            <div data-stat="sales" class="text-3xl font-bold text-gray-900 mb-1">Rp 0</div>
+                            <div class="text-sm text-gray-600 font-medium">Total Penjualan</div>
+                            <div class="mt-3 pt-3 border-t border-gray-200">
+                                <span class="text-xs text-gray-500">Bulan ini</span>
+                            </div>
+                        </div>
+
+                        <div class="card-hover bg-white rounded-2xl shadow-xl p-6 border-l-4 border-green-500 animate-slide-in">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <i class="fas fa-shopping-cart text-2xl text-white"></i>
+                                </div>
+                                <span data-growth="transactions" class="text-sm font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full">
+                                    <i class="fas fa-arrow-up mr-1"></i>+0%
+                                </span>
+                            </div>
+                            <div data-stat="transactions" class="text-3xl font-bold text-gray-900 mb-1">0</div>
+                            <div class="text-sm text-gray-600 font-medium">Total Transaksi</div>
+                            <div class="mt-3 pt-3 border-t border-gray-200">
+                                <span class="text-xs text-gray-500">Bulan ini</span>
+                            </div>
+                        </div>
+
+                        <div class="card-hover bg-white rounded-2xl shadow-xl p-6 border-l-4 border-purple-500 animate-slide-in">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <i class="fas fa-box text-2xl text-white"></i>
+                                </div>
+                                <span data-growth="products" class="text-sm font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full">
+                                    <i class="fas fa-arrow-up mr-1"></i>+0%
+                                </span>
+                            </div>
+                            <div data-stat="products" class="text-3xl font-bold text-gray-900 mb-1">0</div>
+                            <div class="text-sm text-gray-600 font-medium">Total Produk</div>
+                            <div class="mt-3 pt-3 border-t border-gray-200">
+                                <span class="text-xs text-gray-500">Stock tersedia</span>
+                            </div>
+                        </div>
+
+                        <div class="card-hover bg-white rounded-2xl shadow-xl p-6 border-l-4 border-yellow-500 animate-slide-in">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="w-14 h-14 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <i class="fas fa-users text-2xl text-white"></i>
+                                </div>
+                                <span data-growth="users" class="text-sm font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full">
+                                    <i class="fas fa-arrow-up mr-1"></i>+0%
+                                </span>
+                            </div>
+                            <div data-stat="users" class="text-3xl font-bold text-gray-900 mb-1">0</div>
+                            <div class="text-sm text-gray-600 font-medium">Total Pengguna</div>
+                            <div class="mt-3 pt-3 border-t border-gray-200">
+                                <span class="text-xs text-gray-500">Pengguna aktif</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="grid lg:grid-cols-2 gap-6 mb-8">
+                        <div class="bg-white rounded-2xl shadow-xl p-6">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-xl font-bold text-gray-900">Grafik Penjualan</h3>
+                                <select class="px-4 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    <option>7 Hari Terakhir</option>
+                                    <option>30 Hari Terakhir</option>
+                                    <option>6 Bulan Terakhir</option>
+                                </select>
+                            </div>
+                            <canvas id="salesChart"></canvas>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-xl p-6">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-xl font-bold text-gray-900">Produk Terlaris</h3>
+                                <button class="text-purple-600 hover:text-purple-700 text-sm font-semibold">
+                                    Lihat Detail <i class="fas fa-arrow-right ml-1"></i>
+                                </button>
+                            </div>
+                            <canvas id="productChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Recent Transactions & Users -->
+                    <div class="grid lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-2xl shadow-xl p-6">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-xl font-bold text-gray-900">
+                                    <i class="fas fa-receipt text-purple-600 mr-2"></i>
+                                    Transaksi Terbaru
+                                </h3>
+                                <a href="#" onclick="event.preventDefault(); showSection(event, 'transactions');" class="text-sm text-purple-600 hover:text-purple-700 font-semibold">
+                                    Lihat Semua <i class="fas fa-arrow-right ml-1"></i>
+                                </a>
+                            </div>
+                            <div class="space-y-4">
+                                <div id="recent-transactions-list"></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl shadow-xl p-6">
+                                        <div id="products-grid" class="grid md:grid-cols-2 lg:grid-cols-4 gap-6"></div>
+                                    </div>
+                                        <td class="px-6 py-4">
+                                            <div class="flex items-center">
+                                                <img src="https://i.pravatar.cc/40?img=2" class="w-10 h-10 rounded-full mr-3" alt="User">
+                                                <span class="font-semibold">Eka Putri</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 text-gray-600">kasir@pangara.com</td>
+                                        <td class="px-6 py-4">
+                                            <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold">Kasir</span>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">
+                                                <i class="fas fa-check-circle mr-1"></i>Aktif
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <button class="text-blue-600 hover:text-blue-700 mr-3"><i class="fas fa-edit"></i></button>
+                                            <button class="text-red-600 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50 transition">
+                                        <td class="px-6 py-4">
+                                            <div class="flex items-center">
+                                                <img src="https://i.pravatar.cc/40?img=1" class="w-10 h-10 rounded-full mr-3" alt="User">
+                                                <span class="font-semibold">Dedi Setiawan</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 text-gray-600">pembeli@pangara.com</td>
+                                        <td class="px-6 py-4">
+                                            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">Pembeli</span>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">
+                                                <i class="fas fa-check-circle mr-1"></i>Aktif
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <button class="text-blue-600 hover:text-blue-700 mr-3"><i class="fas fa-edit"></i></button>
+                                            <button class="text-red-600 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Products Section -->
+                <div id="products-section" class="section-content hidden">
+                    <div class="bg-white rounded-2xl shadow-xl p-6 mb-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900">
+                                <i class="fas fa-box text-green-600 mr-2"></i>
+                                Kelola Produk
+                            </h2>
+                            <button onclick="openModal('addProductModal')" class="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl hover:shadow-lg transition font-semibold">
+                                <i class="fas fa-plus mr-2"></i>Tambah Produk
+                            </button>
+                        </div>
+                        
+                        <div id="products-grid" class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div class="border-2 border-gray-200 rounded-xl p-4 hover:border-purple-500 hover:shadow-lg transition">
+                                <img src="https://images.unsplash.com/photo-1586201375761-83865001e31c?w=200&h=200&fit=crop" class="w-full h-40 object-cover rounded-lg mb-3" alt="Product">
+                                <h3 class="font-bold text-gray-900 mb-1">Beras Premium 5kg</h3>
+                                <p class="text-sm text-gray-600 mb-2">Kategori: Sembako</p>
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="text-lg font-bold text-purple-600">Rp 65.000</span>
+                                    <span class="text-sm text-gray-500">Stok: 150</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="flex-1 bg-blue-100 text-blue-700 py-2 rounded-lg hover:bg-blue-200 transition text-sm font-semibold">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="flex-1 bg-red-100 text-red-700 py-2 rounded-lg hover:bg-red-200 transition text-sm font-semibold">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="border-2 border-gray-200 rounded-xl p-4 hover:border-purple-500 hover:shadow-lg transition">
+                                <img src="https://images.unsplash.com/photo-1609501676725-7186f017a4b0?w=200&h=200&fit=crop" class="w-full h-40 object-cover rounded-lg mb-3" alt="Product">
+                                <h3 class="font-bold text-gray-900 mb-1">Minyak Goreng 2L</h3>
+                                <p class="text-sm text-gray-600 mb-2">Kategori: Sembako</p>
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="text-lg font-bold text-purple-600">Rp 32.000</span>
+                                    <span class="text-sm text-gray-500">Stok: 200</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="flex-1 bg-blue-100 text-blue-700 py-2 rounded-lg hover:bg-blue-200 transition text-sm font-semibold">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="flex-1 bg-red-100 text-red-700 py-2 rounded-lg hover:bg-red-200 transition text-sm font-semibold">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="border-2 border-gray-200 rounded-xl p-4 hover:border-purple-500 hover:shadow-lg transition">
+                                <img src="https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=200&h=200&fit=crop" class="w-full h-40 object-cover rounded-lg mb-3" alt="Product">
+                                <h3 class="font-bold text-gray-900 mb-1">Gula Pasir 1kg</h3>
+                                <p class="text-sm text-gray-600 mb-2">Kategori: Sembako</p>
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="text-lg font-bold text-purple-600">Rp 15.000</span>
+                                    <span class="text-sm text-gray-500">Stok: 180</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="flex-1 bg-blue-100 text-blue-700 py-2 rounded-lg hover:bg-blue-200 transition text-sm font-semibold">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="flex-1 bg-red-100 text-red-700 py-2 rounded-lg hover:bg-red-200 transition text-sm font-semibold">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Produk akan di-render dinamis oleh JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Categories Section -->
+                <div id="categories-section" class="section-content hidden">
+                    <div class="bg-white rounded-2xl shadow-xl p-6 mb-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900">
+                                <i class="fas fa-tags text-orange-600 mr-2"></i>
+                                Kelola Kategori
+                            </h2>
+                            <button onclick="openModal('addCategoryModal')" class="bg-gradient-to-r from-orange-600 to-orange-700 text-white px-6 py-3 rounded-xl hover:shadow-lg transition font-semibold">
+                                <i class="fas fa-plus mr-2"></i>Tambah Kategori
+                            </button>
+                        </div>
+                        
+                        <div id="categories-grid" class="grid md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+                    </div>
+                </div>
+
+                <!-- Transactions Section -->
+                <div id="transactions-section" class="section-content hidden">
+                    <div class="bg-white rounded-2xl shadow-xl p-6 mb-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-bold text-gray-900">
+                                <i class="fas fa-receipt text-blue-600 mr-2"></i>
+                                Daftar Transaksi
+                            </h2>
+                            <div class="flex gap-3">
+                                <select class="px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    <option>Semua Status</option>
+                                    <option>Berhasil</option>
+                                    <option>Pending</option>
+                                    <option>Dibatalkan</option>
+                                </select>
+                                <button class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2 rounded-xl hover:shadow-lg transition font-semibold">
+                                    <button id="export-transactions-btn" class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2 rounded-xl hover:shadow-lg transition font-semibold">
+                                        <i class="fas fa-download mr-2"></i>Export
+                                    </button>
+                                <button id="export-transactions-btn" class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2 rounded-xl hover:shadow-lg transition font-semibold">
+                                    <i class="fas fa-download mr-2"></i>Export
+                                </button>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-4 text-left text-sm font-bold text-gray-700">ID Transaksi</th>
+                                        <th class="px-6 py-4 text-left text-sm font-bold text-gray-700">Pelanggan</th>
+                                        <th class="px-6 py-4 text-left text-sm font-bold text-gray-700">Total</th>
+                                        <th class="px-6 py-4 text-left text-sm font-bold text-gray-700">Pembayaran</th>
+                                        <th class="px-6 py-4 text-left text-sm font-bold text-gray-700">Status</th>
+                                        <th class="px-6 py-4 text-left text-sm font-bold text-gray-700">Waktu</th>
+                                        <th class="px-6 py-4 text-left text-sm font-bold text-gray-700">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactions-table-body" class="divide-y divide-gray-200"></tbody>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports Section -->
+                <div id="reports-section" class="section-content hidden">
+                    <div class="grid lg:grid-cols-3 gap-6 mb-6">
+                        <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-xl">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-chart-line text-3xl"></i>
+                                </div>
+                                <span data-growth="sales" class="text-sm font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full">+0%</span>
+                            </div>
+                            <div data-stat="sales" class="text-3xl font-bold mb-2">Rp 0</div>
+                            <p class="text-blue-100">Pendapatan Bulan Ini</p>
+                        </div>
+                        <div class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-2xl p-6 shadow-xl">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-shopping-bag text-3xl"></i>
+                                </div>
+                                <span data-growth="transactions" class="text-sm font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full">+0%</span>
+                            </div>
+                            <div data-stat="transactions" class="text-3xl font-bold mb-2">0</div>
+                            <p class="text-green-100">Total Transaksi</p>
+                        </div>
+                        <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-2xl p-6 shadow-xl">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-chart-pie text-3xl"></i>
+                                </div>
+                                <span data-growth="products" class="text-sm font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full">+0%</span>
+                            </div>
+                            <div data-stat="products" class="text-3xl font-bold mb-2">0</div>
+                            <p class="text-purple-100">Rata-rata per Transaksi</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-2xl shadow-xl p-6 mb-6">
+                        <h2 class="text-2xl font-bold text-gray-900 mb-6">
+                            <i class="fas fa-chart-bar text-purple-600 mr-2"></i>
+                            Laporan Penjualan
+                        </h2>
+                        <canvas id="reportChart" height="80"></canvas>
+                    </div>
+                </div>
+
+                <!-- Settings Section -->
+                <div id="settings-section" class="section-content hidden">
+                    <div class="grid lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-2xl shadow-xl p-6">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-6">
+                                <i class="fas fa-store text-purple-600 mr-2"></i>
+                                Pengaturan Toko
+                            </h2>
+                            <div class="space-y-4">
+                                <form id="store-settings-form" class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Toko</label>
+                                        <input type="text" name="store_name" id="store_name" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-700 mb-2">Alamat</label>
+                                        <textarea name="address" id="address" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500" rows="3"></textarea>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-700 mb-2">Telepon</label>
+                                        <input type="text" name="phone" id="phone" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    </div>
+                                    <button id="save-store-settings" type="submit" class="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3 rounded-xl hover:shadow-lg transition font-semibold">
+                                        <i class="fas fa-save mr-2"></i>Simpan Perubahan
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-2xl shadow-xl p-6">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-6">
+                                <i class="fas fa-bell text-purple-600 mr-2"></i>
+                                Notifikasi
+                            </h2>
+                            <div class="space-y-4">
+                                <form id="notification-settings-form" class="space-y-4">
+                                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                                        <div>
+                                            <div class="font-semibold text-gray-900">Email Notifikasi</div>
+                                            <div class="text-sm text-gray-600">Terima notifikasi melalui email</div>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" name="notif_email" id="notif_email" class="sr-only peer">
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                                        <div>
+                                            <div class="font-semibold text-gray-900">Notifikasi Stok Rendah</div>
+                                            <div class="text-sm text-gray-600">Peringatan jika stok hampir habis</div>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" name="notif_stock" id="notif_stock" class="sr-only peer">
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                                        <div>
+                                            <div class="font-semibold text-gray-900">Laporan Harian</div>
+                                            <div class="text-sm text-gray-600">Terima laporan penjualan harian</div>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" name="notif_daily_report" id="notif_daily_report" class="sr-only peer">
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                        </label>
+                                    </div>
+                                    <button id="save-notification-settings" type="submit" class="hidden"></button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Add User Modal -->
+    <div id="addUserModal" class="modal">
+        <div class="modal-content">
+            <div class="bg-gradient-to-r from-purple-600 to-purple-700 p-6 rounded-t-xl">
+                <div class="flex items-center justify-between text-white">
+                    <h3 class="text-2xl font-bold">
+                        <i class="fas fa-user-plus mr-2"></i>Tambah Pengguna Baru
+                    </h3>
+                    <button onclick="closeModal('addUserModal')" class="text-white hover:text-gray-200">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <form class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Lengkap</label>
+                        <input type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Masukkan nama lengkap">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                        <input type="email" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="email@example.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                        <input type="password" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Masukkan password">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Role</label>
+                        <select class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <option>Admin</option>
+                            <option>Kasir</option>
+                            <option>Pembeli</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-3 pt-4">
+                        <button type="button" onclick="closeModal('addUserModal')" class="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-semibold">
+                            Batal
+                        </button>
+                        <button type="submit" class="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-3 rounded-xl hover:shadow-lg transition font-semibold">
+                            <i class="fas fa-save mr-2"></i>Simpan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div id="addProductModal" class="modal">
+        <div class="modal-content">
+            <div class="bg-gradient-to-r from-green-600 to-green-700 p-6 rounded-t-xl">
+                <div class="flex items-center justify-between text-white">
+                    <h3 class="text-2xl font-bold">
+                        <i class="fas fa-box-open mr-2"></i>Tambah Produk Baru
+                    </h3>
+                    <button onclick="closeModal('addProductModal')" class="text-white hover:text-gray-200">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <form id="addProductForm" class="space-y-4" enctype="multipart/form-data">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Produk</label>
+                        <input type="text" name="name" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Masukkan nama produk">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Kategori</label>
+                            <select name="category" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <option>Sembako</option>
+                                <option>Buah & Sayur</option>
+                                <option>Makanan Ringan</option>
+                                <option>Minuman</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Harga</label>
+                            <input type="number" name="price" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="0">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Stok</label>
+                        <input type="number" name="stock" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Deskripsi</label>
+                        <textarea name="description" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" rows="3" placeholder="Deskripsi produk"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Gambar Produk</label>
+                        <input type="file" name="image" accept="image/*" class="w-full text-sm text-gray-600">
+                        <small class="text-gray-500">PNG/JPG/GIF/WebP - Maks 4MB</small>
+                    </div>
+                    <div class="flex gap-3 pt-4">
+                        <button type="button" onclick="closeModal('addProductModal')" class="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-semibold">
+                            Batal
+                        </button>
+                        <button type="submit" class="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl hover:shadow-lg transition font-semibold">
+                            <i class="fas fa-save mr-2"></i>Simpan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Category Modal -->
+    <div id="addCategoryModal" class="modal">
+        <div class="modal-content">
+            <div class="bg-gradient-to-r from-orange-600 to-orange-700 p-6 rounded-t-xl">
+                <div class="flex items-center justify-between text-white">
+                    <h3 class="text-2xl font-bold">
+                        <i class="fas fa-tag mr-2"></i>Tambah Kategori Baru
+                    </h3>
+                    <button onclick="closeModal('addCategoryModal')" class="text-white hover:text-gray-200">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <form class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Kategori</label>
+                        <input type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Masukkan nama kategori">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Icon</label>
+                        <select name="icon" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500">
+                            <option value="fa-basket-shopping">🛒 Sembako</option>
+                            <option value="fa-apple-alt">🍎 Buah & Sayur</option>
+                            <option value="fa-candy-cane">🍬 Makanan Ringan</option>
+                            <option value="fa-wine-bottle">🧃 Minuman</option>
+                            <option value="fa-tag">🏷️ Lainnya</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Deskripsi</label>
+                        <textarea class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500" rows="3" placeholder="Deskripsi kategori"></textarea>
+                    </div>
+                    <div class="flex gap-3 pt-4">
+                        <button type="button" onclick="closeModal('addCategoryModal')" class="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-semibold">
+                            Batal
+                        </button>
+                        <button type="submit" class="flex-1 bg-gradient-to-r from-orange-600 to-orange-700 text-white px-6 py-3 rounded-xl hover:shadow-lg transition font-semibold">
+                            <i class="fas fa-save mr-2"></i>Simpan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Edit Profile Modal -->
+    <div id="editProfileModal" class="modal">
+        <div class="modal-content">
+            <div class="bg-gradient-to-r from-purple-600 to-purple-700 p-6 rounded-t-xl">
+                <div class="flex items-center justify-between text-white">
+                    <h3 class="text-2xl font-bold"><i class="fas fa-user-edit mr-2"></i>Edit Profil</h3>
+                    <button onclick="closeModal('editProfileModal')" class="text-white hover:text-gray-200">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <form id="profileForm" class="space-y-4" enctype="multipart/form-data">
+                    <div class="flex items-center gap-4">
+                        <img id="profilePreview" src="{{ Auth::user()->avatar ? asset('storage/avatars/' . Auth::user()->avatar) : 'https://i.pravatar.cc/80?u=' . Auth::user()->id }}" class="w-20 h-20 rounded-full border-2 border-purple-500 object-cover" alt="Avatar">
+                        <div class="flex-1">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Nama</label>
+                            <input type="text" name="name" id="profileName" value="{{ old('name', Auth::user()->name) }}" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2 mt-3">Foto Profil</label>
+                            <input type="file" name="avatar" id="profileAvatar" accept="image/*" class="block w-full text-sm text-gray-600">
+                            <small class="text-gray-500">Maks 2MB. JPG, PNG, GIF, WEBP.</small>
+                        </div>
+                    </div>
+                    <div class="flex gap-3 pt-4">
+                        <button type="button" onclick="closeModal('editProfileModal')" class="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-semibold">Batal</button>
+                        <button type="submit" class="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-3 rounded-xl hover:shadow-lg transition font-semibold"><i class="fas fa-save mr-2"></i>Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Section Navigation - Fixed function with event parameter
+        function showSection(event, sectionName) {
+            // Prevent default action
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            
+            // Hide all sections
+            document.querySelectorAll('.section-content').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Show selected section
+            const section = document.getElementById(sectionName + '-section');
+            if (section) {
+                section.classList.remove('hidden');
+            }
+            
+            // Update active sidebar link
+            document.querySelectorAll('.sidebar-link').forEach(link => {
+                link.classList.remove('active');
+                link.classList.add('hover:bg-gray-800');
+            });
+            
+            // Add active class to clicked link
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+                event.currentTarget.classList.remove('hover:bg-gray-800');
+            } else {
+                // Fallback: find by data-section attribute
+                const activeLink = document.querySelector(`.sidebar-link[data-section="${sectionName}"]`);
+                if (activeLink) {
+                    activeLink.classList.add('active');
+                    activeLink.classList.remove('hover:bg-gray-800');
+                }
+            }
+        }
+
+        // Add Product form submit (AJAX with file)
+        const addProductForm = document.getElementById('addProductForm');
+        if (addProductForm) {
+            addProductForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const fd = new FormData(this);
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                try {
+                    const res = await fetch('/api/products', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': token },
+                        body: fd,
+                        credentials: 'same-origin'
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        closeModal('addProductModal');
+                        alert(data.message || 'Produk berhasil ditambahkan');
+                        // Optionally reload page or refresh products grid
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Gagal menambahkan produk');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('Terjadi kesalahan saat mengirim data');
+                }
+            });
+        }
+        
+        // Modal Functions with smooth animation
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+        
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('show');
+                document.body.style.overflow = 'auto';
+            }
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('show');
+                document.body.style.overflow = 'auto';
+            }
+        }
+        
+        // Close modal with ESC key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                document.querySelectorAll('.modal.show').forEach(modal => {
+                    modal.classList.remove('show');
+                    document.body.style.overflow = 'auto';
+                });
+            }
+        });
+
+        // Sales Chart
+        const salesCtx = document.getElementById('salesChart');
+        if (salesCtx) {
+            new Chart(salesCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'],
+                datasets: [{
+                    label: 'Penjualan (Rp)',
+                    data: [3000000, 3500000, 3200000, 4000000, 4200000, 4567890],
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#667eea',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: { size: 12, family: 'Poppins' },
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: { size: 14, family: 'Poppins' },
+                        bodyFont: { size: 13, family: 'Poppins' },
+                        callbacks: {
+                            label: function(context) {
+                                return 'Rp ' + context.parsed.y.toLocaleString('id-ID');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'Rp ' + (value / 1000000) + 'Jt';
+                            },
+                            font: { size: 11, family: 'Poppins' }
+                        },
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    },
+                    x: {
+                        ticks: { font: { size: 11, family: 'Poppins' } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+        }
+
+        // Product Chart
+        const productCtx = document.getElementById('productChart');
+        if (productCtx && typeof productsData !== 'undefined') {
+            // Ambil top 5 produk terlaris berdasarkan sold/qty_sold
+            const sorted = [...productsData].sort((a, b) => (b.sold || b.qty_sold || 0) - (a.sold || a.qty_sold || 0));
+            const topProducts = sorted.slice(0, 5);
+            const labels = topProducts.map(p => p.name);
+            const data = topProducts.map(p => p.sold || p.qty_sold || 0);
+            new Chart(productCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Terjual (unit)',
+                        data: data,
+                        backgroundColor: [
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(118, 75, 162, 0.8)',
+                            'rgba(240, 147, 251, 0.8)',
+                            'rgba(79, 172, 254, 0.8)',
+                            'rgba(67, 233, 123, 0.8)'
+                        ],
+                        borderColor: [
+                            '#667eea',
+                            '#764ba2',
+                            '#f093fb',
+                            '#4facfe',
+                            '#43e97b'
+                        ],
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                font: { size: 12, family: 'Poppins' },
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: { size: 14, family: 'Poppins' },
+                            bodyFont: { size: 13, family: 'Poppins' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { font: { size: 11, family: 'Poppins' } },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        x: {
+                            ticks: { font: { size: 11, family: 'Poppins' } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Report Chart (for Reports Section) - with proper null check
+        setTimeout(() => {
+            const reportCtx = document.getElementById('reportChart');
+            if (reportCtx) {
+                new Chart(reportCtx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
+                        datasets: [
+                            {
+                                label: 'Minggu Ini',
+                                data: [450000, 520000, 480000, 600000, 750000, 890000, 680000],
+                                borderColor: '#667eea',
+                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                tension: 0.4,
+                                fill: true,
+                                pointBackgroundColor: '#667eea',
+                                pointBorderWidth: 2,
+                                pointRadius: 5
+                            },
+                            {
+                                label: 'Minggu Lalu',
+                                data: [380000, 450000, 420000, 550000, 620000, 750000, 590000],
+                                borderColor: '#764ba2',
+                                backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                                tension: 0.4,
+                                fill: true,
+                                pointBackgroundColor: '#764ba2',
+                                pointBorderWidth: 2,
+                                pointRadius: 5
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: { font: { size: 12, family: 'Poppins' }, padding: 15 }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                padding: 12,
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': Rp ' + context.parsed.y.toLocaleString('id-ID');
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return 'Rp ' + (value / 1000) + 'K';
+                                    },
+                                    font: { size: 11, family: 'Poppins' }
+                                },
+                                grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                            },
+                            x: {
+                                ticks: { font: { size: 11, family: 'Poppins' } },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            }
+        }, 100);
+
+        // Animation on load - with proper error handling
+        window.addEventListener('load', () => {
+            const cards = document.querySelectorAll('.animate-slide-in');
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        card.style.transition = 'all 0.5s ease';
+                        card.style.opacity = '1';
+                        card.style.transform = 'translateY(0)';
+                    }, 50);
+                }, index * 100);
+            });
+        });
+
+        // Profile form: preview and submit
+        const profileAvatarInput = document.getElementById('profileAvatar');
+        const profilePreview = document.getElementById('profilePreview');
+        const profileForm = document.getElementById('profileForm');
+
+        if (profileAvatarInput && profilePreview) {
+            profileAvatarInput.addEventListener('change', function(e) {
+                const file = this.files && this.files[0];
+                if (file) {
+                    profilePreview.src = URL.createObjectURL(file);
+                }
+            });
+        }
+
+        if (profileForm) {
+            profileForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const fd = new FormData(this);
+                const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                try {
+                    const res = await fetch('/api/user/profile', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': token },
+                        body: fd,
+                        credentials: 'same-origin'
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        // update UI
+                        if (data.data.avatar_url) {
+                            const sidebarAvatar = document.getElementById('sidebarAvatar');
+                            const headerAvatar = document.getElementById('headerAvatar');
+                            if (sidebarAvatar) sidebarAvatar.src = data.data.avatar_url;
+                            if (headerAvatar) headerAvatar.src = data.data.avatar_url;
+                            if (profilePreview) profilePreview.src = data.data.avatar_url;
+                        }
+                        if (data.data.name) {
+                            // update sidebar name
+                            const sidebarName = document.querySelector('.sidebar-footer .font-semibold.text-sm');
+                            if (sidebarName) sidebarName.textContent = data.data.name;
+                            // update header welcome name
+                            const headerSpan = document.querySelector('header p span.font-semibold.text-purple-600');
+                            if (headerSpan) headerSpan.textContent = data.data.name;
+                        }
+                        closeModal('editProfileModal');
+                        alert(data.message || 'Profil berhasil diperbarui');
+                    } else {
+                        alert(data.message || 'Gagal memperbarui profil');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('Terjadi kesalahan saat mengirim data');
+                }
+            });
+        }
+    </script>
+
+    <!-- Admin Dashboard - Real Data Implementation -->
+    <script src="{{ asset('js/admin-dashboard.js') }}"></script>
+
+</body>
+</html>
+
